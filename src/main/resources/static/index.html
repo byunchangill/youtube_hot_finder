@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YouTube Hot Finder</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link href="css/style.css?v=2" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="bg-primary text-white py-3">
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col">
+            <h1 class="h3 mb-0">
+              <i class="fas fa-feather-alt me-2"></i>
+              YouTube Hot Finder
+            </h1>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+      <div class="container">
+        <ul class="nav nav-tabs w-100" id="mainTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="channel-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#channel"
+              type="button"
+              role="tab"
+            >
+              채널핸들명
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="keyword-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#keyword"
+              type="button"
+              role="tab"
+            >
+              키워드입력
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="settings-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#settings"
+              type="button"
+              role="tab"
+            >
+              설정
+            </button>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid py-4">
+      <div class="tab-content" id="mainTabsContent">
+        <!-- Channel Tab -->
+        <div class="tab-pane fade" id="channel" role="tabpanel">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="card-title mb-0">채널 검색 설정</h5>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="channelHandle" class="form-label"
+                      >채널 핸들명</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="channelHandle"
+                      placeholder="@channelname"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary w-100"
+                    id="searchChannelBtn"
+                  >
+                    <i class="fas fa-search me-2"></i>채널 검색
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="card-title mb-0">채널 검색 결과</h5>
+                </div>
+                <div class="card-body">
+                  <div id="channelResults">
+                    <p class="text-muted text-center">채널을 검색해주세요.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Keyword Tab -->
+        <div class="tab-pane fade show active" id="keyword" role="tabpanel">
+          <div class="row">
+            <!-- Left Column - General Settings -->
+            <div class="col-md-3">
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h6 class="card-title mb-0">실행모드</h6>
+                </div>
+                <div class="card-body">
+                  <select class="form-select" id="executionMode">
+                    <!-- <option value="reupload">재업로드</option> -->
+                    <option value="trending">트렌딩</option>
+                    <option value="popular">인기</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h6 class="card-title mb-0">분석 설정</h6>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="daysToAnalyze" class="form-label"
+                      >최근 며칠간의 영상을 분석할까요</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="daysToAnalyze"
+                      value="10"
+                      min="1"
+                      max="30"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="maxSearchesPerChannel" class="form-label"
+                      >채널당 최대 검색 수</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="maxSearchesPerChannel"
+                      value="10"
+                      min="1"
+                      max="100"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="minViewsPerHour" class="form-label"
+                      >최소 시간당 조회수</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="minViewsPerHour"
+                      value="600"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="apiWaitTime" class="form-label"
+                      >API 키 쿼터 소진 시 대기시간 (분)</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="apiWaitTime"
+                      value="30"
+                      min="1"
+                      max="1440"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">API 키 대기 상태</label>
+                    <div class="alert alert-info" id="apiStatus">
+                      대기 중이 아님
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Middle Column - Filter Settings -->
+            <div class="col-md-3">
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h6 class="card-title mb-0">필터 설정</h6>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="videoType" class="form-label">쇼즈/롱폼</label>
+                    <select class="form-select" id="videoType">
+                      <option value="normal">롱폼</option>
+                      <option value="shorts">쇼츠</option>
+                      <option value="both">둘다</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="targetCountry" class="form-label"
+                      >대상국가</label
+                    >
+                    <select class="form-select" id="targetCountry">
+                      <option value="KR">한국</option>
+                      <option value="US">미국</option>
+                      <option value="JP">일본</option>
+                      <option value="GB">영국</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="maxSearchesPerKeyword" class="form-label"
+                      >검색어당 최대 검색 수</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="maxSearchesPerKeyword"
+                      value="50"
+                      min="1"
+                      max="200"
+                    />
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="showPopularByChannel"
+                    />
+                    <label class="form-check-label" for="showPopularByChannel">
+                      채널별 인기영상 보기
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column - Output Criteria -->
+            <div class="col-md-3">
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h6 class="card-title mb-0">출력 기준</h6>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="shortsDuration" class="form-label"
+                      >쇼츠 기준(조)</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="shortsDuration"
+                      value="180"
+                      min="1"
+                      max="3600"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="language" class="form-label">언어</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="language"
+                      value="ko"
+                      maxlength="2"
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="minViews" class="form-label">최소 조회수</label>
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="minViews"
+                      value="20000"
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Search Input -->
+            <div class="col-md-3">
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h6 class="card-title mb-0">키워드 검색</h6>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="searchKeyword" class="form-label"
+                      >검색 키워드</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="searchKeyword"
+                      placeholder="검색어를 입력하세요"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-success w-100 mb-3"
+                    id="searchKeywordBtn"
+                  >
+                    <i class="fas fa-search me-2"></i>키워드 검색
+                  </button>
+                  <!-- <button
+                    type="button"
+                    class="btn btn-warning w-100"
+                    id="skipWaitBtn"
+                  >
+                    대기 스킵 후 다음 키로
+                  </button> -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search Results -->
+          <div class="row">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="card-title mb-0">검색 결과</h5>
+                </div>
+                <div class="card-body">
+                  <div id="searchResults">
+                    <p class="text-muted text-center">검색을 시작해주세요.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-pane fade" id="settings" role="tabpanel">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="card-title mb-0">API 설정</h5>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="youtubeApiKey" class="form-label"
+                      >YouTube API 키</label
+                    >
+                    <input
+                      type="password"
+                      class="form-control"
+                      id="youtubeApiKey"
+                      placeholder="API 키를 입력하세요"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="saveApiKeyBtn"
+                  >
+                    <i class="fas fa-save me-2"></i>API 키 저장
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="card-title mb-0">사용자 설정</h5>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="defaultLanguage" class="form-label"
+                      >기본 언어</label
+                    >
+                    <select class="form-select" id="defaultLanguage">
+                      <option value="ko">한국어</option>
+                      <option value="en">English</option>
+                      <option value="ja">日本語</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="defaultCountry" class="form-label"
+                      >기본 국가</label
+                    >
+                    <select class="form-select" id="defaultCountry">
+                      <option value="KR">한국</option>
+                      <option value="US">미국</option>
+                      <option value="JP">일본</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-success"
+                    id="saveSettingsBtn"
+                  >
+                    <i class="fas fa-save me-2"></i>설정 저장
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none">
+      <div class="loading-content">
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="visually-hidden">로딩 중...</span>
+        </div>
+        <p class="mb-0" id="loadingMessage">
+          검색 중입니다. 잠시만 기다려주세요...
+        </p>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Application Scripts (순서 중요) -->
+    <script src="js/utils/StateManager.js?v=2"></script>
+    <script src="js/services/APIManager.js?v=2"></script>
+    <script src="js/services/SearchManager.js?v=2"></script>
+    <script src="js/components/UIController.js?v=2"></script>
+    <script src="js/components/FilterManager.js?v=2"></script>
+    <script src="js/components/DataVisualizer.js?v=2"></script>
+    <script src="js/app.js?v=2"></script>
+  </body>
+</html>

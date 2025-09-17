@@ -1,0 +1,35 @@
+{
+  "name": "youtube-hot-finder",
+  "version": "1.0.0",
+  "description": "YouTube Hot Finder - 유튜브 인기 영상 랭킹 분석 플랫폼",
+  "main": "src/main/resources/static/js/app.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "dev": "webpack serve --mode development",
+    "lint": "eslint src/main/resources/static/js/**/*.js",
+    "format": "prettier --write src/main/resources/static/js/**/*.js"
+  },
+  "keywords": [
+    "youtube",
+    "ranking",
+    "analysis",
+    "trending",
+    "videos"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "bootstrap": "^5.3.0",
+    "chart.js": "^4.4.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "css-loader": "^6.8.1",
+    "style-loader": "^3.3.3",
+    "html-webpack-plugin": "^5.5.3",
+    "eslint": "^8.45.0",
+    "prettier": "^3.0.0"
+  }
+}

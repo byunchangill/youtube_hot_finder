@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-mappings xmlns="http://java.sun.com/xml/ns/persistence/orm"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://java.sun.com/xml/ns/persistence/orm
+                 http://java.sun.com/xml/ns/persistence/orm_2_0.xsd"
+                 version="2.0">
+
+    <!-- 최근 검색 로그 조회 -->
+    <named-query name="SearchLog.findRecentSearchLogs">
+        <query>
+            SELECT s FROM SearchLog s 
+            ORDER BY s.createdAt DESC
+        </query>
+    </named-query>
+
+    <!-- 특정 기간 내 검색 로그 조회 -->
+    <named-query name="SearchLog.findByDateRange">
+        <query>
+            SELECT s FROM SearchLog s 
+            WHERE s.createdAt BETWEEN :startDate AND :endDate 
+            ORDER BY s.createdAt DESC
+        </query>
+    </named-query>
+
+    <!-- 인기 검색 키워드 조회 -->
+    <named-query name="SearchLog.findPopularSearchKeywords">
+        <query>
+            SELECT s.searchKeyword, COUNT(s) as searchCount 
+            FROM SearchLog s 
+            GROUP BY s.searchKeyword 
+            ORDER BY searchCount DESC
+        </query>
+    </named-query>
+
+    <!-- API 키별 검색 통계 -->
+    <named-query name="SearchLog.getSearchStatsByApiKey">
+        <query>
+            SELECT s.apiKeyId, COUNT(s) as searchCount, AVG(s.searchDurationMs) as avgDuration 
+            FROM SearchLog s 
+            WHERE s.apiKeyId IS NOT NULL 
+            GROUP BY s.apiKeyId
+        </query>
+    </named-query>
+
+</entity-mappings>
