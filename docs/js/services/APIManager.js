@@ -6,11 +6,7 @@
 class APIManager {
   constructor() {
     this.cachedKey = null;
-    this.propertiesPathCandidates = [
-      '../application.properties',
-      '/application.properties',
-      'application.properties',
-    ];
+    this.propertiesPathCandidates = null; // 런타임에 계산
   }
 
   /**
@@ -42,7 +38,22 @@ class APIManager {
    */
   async preloadKeyFromProperties() {
     if (this.cachedKey) return this.cachedKey;
-    for (const path of this.propertiesPathCandidates) {
+    // 현재 페이지 경로에서 레포 베이스 추출 (예: /youtube_hot_finder)
+    const segments = (window.location.pathname || '')
+      .split('/')
+      .filter(Boolean);
+    const repoBase = segments.length > 0 ? `/${segments[0]}` : '';
+
+    // 우선순위: 상대경로 → ./ → 레포베이스 → 도메인루트 → 상위경로
+    const candidates = [
+      'application.properties',
+      './application.properties',
+      `${repoBase}/application.properties`,
+      '/application.properties',
+      '../application.properties',
+    ];
+
+    for (const path of candidates) {
       try {
         const res = await fetch(path, { cache: 'no-cache' });
         if (!res.ok) continue;

@@ -33,8 +33,8 @@ class YouTubeHotFinder {
       // 이벤트 리스너 등록
       this.setupEventListeners();
 
-      // application.properties에서 기본 API 키 로드 시도
-      await this.apiManager.preloadKeyFromProperties();
+      // application.properties에서 기본 API 키 로드 시도 (실패해도 계속 진행)
+      try { await this.apiManager.preloadKeyFromProperties(); } catch (_) {}
 
       // 초기 데이터 로드
       await this.loadInitialData();
