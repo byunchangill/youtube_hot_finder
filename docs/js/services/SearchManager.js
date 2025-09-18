@@ -26,6 +26,7 @@ class SearchManager {
         return cachedResult;
       }
 
+      await this.apiManager.ensureKeyLoaded();
       const apiKey = this.apiManager.getApiKey();
 
       // 1) 핸들로 채널 ID 조회
@@ -101,6 +102,7 @@ class SearchManager {
         return cachedResult;
       }
 
+      await this.apiManager.ensureKeyLoaded();
       const apiKey = this.apiManager.getApiKey();
 
       // 1) search API로 영상 ID 수집
@@ -185,6 +187,7 @@ class SearchManager {
   async analyzeChannel(channelId) {
     try {
       console.log('채널 분석 시작:', channelId);
+      await this.apiManager.ensureKeyLoaded();
       const apiKey = this.apiManager.getApiKey();
 
       // 채널 기본 정보
@@ -374,6 +377,7 @@ class SearchManager {
   async getTrendingVideos(country = 'KR', category = '0') {
     try {
       console.log('트렌딩 영상 가져오기:', country, category);
+      await this.apiManager.ensureKeyLoaded();
       const apiKey = this.apiManager.getApiKey();
       const params = new URLSearchParams({
         part: 'snippet,statistics,contentDetails',
@@ -446,6 +450,7 @@ class SearchManager {
   async getVideoDetails(videoId) {
     try {
       console.log('영상 상세 정보 가져오기:', videoId);
+      await this.apiManager.ensureKeyLoaded();
       const apiKey = this.apiManager.getApiKey();
       const res = await fetch(
         `${this.youtubeApiBase}/videos?part=snippet,statistics,contentDetails&id=${videoId}&key=${apiKey}`

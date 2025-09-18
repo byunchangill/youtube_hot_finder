@@ -38,6 +38,26 @@ class APIManager {
    */
   async preloadKeyFromProperties() {
     if (this.cachedKey) return this.cachedKey;
+    // 0) 메타 태그 우선 (선택적)
+    try {
+      const meta = document.querySelector('meta[name="youtube-api-key"]');
+      const metaKey = meta ? meta.getAttribute('content')?.trim() : '';
+      if (metaKey) {
+        this.cachedKey = metaKey;
+        return this.cachedKey;
+      }
+    } catch (_) {}
+
+    // 0-2) 전역 변수 우선 (선택적)
+    try {
+      if (window && window.__YOUTUBE_API_KEY__) {
+        const gk = String(window.__YOUTUBE_API_KEY__).trim();
+        if (gk) {
+          this.cachedKey = gk;
+          return this.cachedKey;
+        }
+      }
+    } catch (_) {}
     // 현재 페이지 경로에서 레포 베이스 추출 (예: /youtube_hot_finder)
     const segments = (window.location.pathname || '')
       .split('/')
@@ -76,5 +96,13 @@ class APIManager {
       }
     }
     return null;
+  }
+
+  /**
+   * 키가 없을 때 마지막으로 한 번 더 로드 시도
+   */
+  async ensureKeyLoaded() {
+    if (this.cachedKey) return this.cachedKey;
+    return await this.preloadKeyFromProperties();
   }
 }
