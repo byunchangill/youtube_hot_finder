@@ -108,7 +108,10 @@ class SearchManager {
       // 국가-언어 기본 매핑(언어 미설정 또는 기본값인 경우 보정)
       const country = filters.country || filters.targetCountry || 'KR';
       const languageMap = { KR: 'ko', US: 'en', GB: 'en', JP: 'ja' };
-      if (!filters.language || filters.language === 'ko' && country !== 'KR') {
+      if (
+        !filters.language ||
+        (filters.language === 'ko' && country !== 'KR')
+      ) {
         filters.language = languageMap[country] || filters.language || 'en';
       }
 
