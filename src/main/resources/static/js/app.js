@@ -33,6 +33,9 @@ class YouTubeHotFinder {
       // 이벤트 리스너 등록
       this.setupEventListeners();
 
+      // application.properties에서 기본 API 키 로드 시도
+      await this.apiManager.preloadKeyFromProperties();
+
       // 초기 데이터 로드
       await this.loadInitialData();
 
@@ -68,9 +71,16 @@ class YouTubeHotFinder {
       });
 
     // 설정 저장 버튼 이벤트
-    document.getElementById('saveApiKeyBtn')?.addEventListener('click', () => {
-      this.handleSaveApiKey();
-    });
+    document
+      .getElementById('saveApiKeyBtn')
+      ?.addEventListener('click', async () => {
+        const isValid = await this.apiManager.validateApiKey();
+        if (isValid) {
+          this.showSuccess('API 키가 적용되었습니다. (저장되지 않음)');
+        } else {
+          this.showError('유효한 API 키를 입력해주세요.');
+        }
+      });
 
     document
       .getElementById('saveSettingsBtn')
@@ -222,22 +232,7 @@ class YouTubeHotFinder {
   /**
    * API 키 저장 처리
    */
-  async handleSaveApiKey() {
-    const apiKey = document.getElementById('youtubeApiKey').value.trim();
-
-    if (!apiKey) {
-      this.showError('API 키를 입력해주세요.');
-      return;
-    }
-
-    try {
-      await this.apiManager.saveApiKey(apiKey);
-      this.showSuccess('API 키가 저장되었습니다.');
-    } catch (error) {
-      console.error('API 키 저장 오류:', error);
-      this.showError('API 키 저장 중 오류가 발생했습니다.');
-    }
-  }
+  async handleSaveApiKey() {}
 
   /**
    * 설정 저장 처리
@@ -326,14 +321,10 @@ class YouTubeHotFinder {
    */
   async loadInitialData() {
     try {
-      // 저장된 설정 로드
       const savedSettings = await this.stateManager.getSettings();
       if (savedSettings) {
         this.applySettings(savedSettings);
       }
-
-      // API 상태 확인
-      await this.updateApiStatus();
     } catch (error) {
       console.error('초기 데이터 로드 오류:', error);
     }
@@ -358,14 +349,7 @@ class YouTubeHotFinder {
   /**
    * API 상태 업데이트
    */
-  async updateApiStatus() {
-    try {
-      const status = await this.apiManager.getStatus();
-      this.uiController.updateApiStatus(status);
-    } catch (error) {
-      console.error('API 상태 업데이트 오류:', error);
-    }
-  }
+  async updateApiStatus() {}
 
   /**
    * 로딩 표시

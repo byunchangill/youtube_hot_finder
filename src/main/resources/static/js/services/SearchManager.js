@@ -5,9 +5,10 @@
 
 class SearchManager {
   constructor() {
-    this.baseUrl = '/api';
     this.searchCache = new Map();
     this.cacheExpiry = 5 * 60 * 1000; // 5분
+    this.youtubeApiBase = 'https://www.googleapis.com/youtube/v3';
+    this.apiManager = new APIManager();
   }
 
   /**
@@ -25,28 +26,54 @@ class SearchManager {
         return cachedResult;
       }
 
-      // API 호출
-      const response = await fetch(`${this.baseUrl}/search/channel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          handle: channelHandle,
-        }),
-      });
+      const apiKey = this.apiManager.getApiKey();
 
-      if (!response.ok) {
-        if (response.status === 401) {
+      // 1) 핸들로 채널 ID 조회
+      const handle = channelHandle.startsWith('@')
+        ? channelHandle
+        : `@${channelHandle}`;
+      const resolveRes = await fetch(
+        `${this.youtubeApiBase}/search?part=snippet&type=channel&q=${encodeURIComponent(
+          handle
+        )}&maxResults=5&key=${apiKey}`
+      );
+      if (!resolveRes.ok) {
+        if (resolveRes.status === 403) throw new Error('QUOTA_EXCEEDED');
+        if (resolveRes.status === 400 || resolveRes.status === 401)
           throw new Error('API_KEY_INVALID');
-        } else if (response.status === 429) {
-          throw new Error('QUOTA_EXCEEDED');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${resolveRes.status}`);
+      }
+      const resolveJson = await resolveRes.json();
+      const channelIds = (resolveJson.items || [])
+        .map((i) => i.snippet?.channelId || i.id?.channelId)
+        .filter(Boolean);
+      if (channelIds.length === 0) {
+        this.setCachedResult(cacheKey, []);
+        return [];
       }
 
-      const data = await response.json();
+      // 2) channels API로 상세 조회
+      const channelsRes = await fetch(
+        `${this.youtubeApiBase}/channels?part=snippet,statistics&id=${channelIds
+          .slice(0, 5)
+          .join(',')}&key=${apiKey}`
+      );
+      if (!channelsRes.ok) {
+        if (channelsRes.status === 403) throw new Error('QUOTA_EXCEEDED');
+        if (channelsRes.status === 400 || channelsRes.status === 401)
+          throw new Error('API_KEY_INVALID');
+        throw new Error(`HTTP error! status: ${channelsRes.status}`);
+      }
+      const channelsJson = await channelsRes.json();
+      const data = (channelsJson.items || []).map((ch) => ({
+        id: ch.id,
+        title: ch.snippet?.title || '',
+        description: ch.snippet?.description || '',
+        thumbnail: ch.snippet?.thumbnails?.default?.url || '',
+        subscriberCount: Number(ch.statistics?.subscriberCount || 0),
+        videoCount: Number(ch.statistics?.videoCount || 0),
+        viewCount: Number(ch.statistics?.viewCount || 0),
+      }));
 
       // 결과 캐싱
       this.setCachedResult(cacheKey, data);
@@ -74,29 +101,72 @@ class SearchManager {
         return cachedResult;
       }
 
-      // API 호출
-      const response = await fetch(`${this.baseUrl}/search/keyword`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          keyword: keyword,
-          filters: filters,
-        }),
-      });
+      const apiKey = this.apiManager.getApiKey();
 
-      if (!response.ok) {
-        if (response.status === 401) {
+      // 1) search API로 영상 ID 수집
+      const params = new URLSearchParams({
+        part: 'snippet',
+        q: keyword,
+        type: 'video',
+        maxResults: '25',
+        key: apiKey,
+        relevanceLanguage: filters.language || 'ko',
+        regionCode: filters.country || filters.targetCountry || 'KR',
+      });
+      const searchRes = await fetch(`${this.youtubeApiBase}/search?${params}`);
+      if (!searchRes.ok) {
+        if (searchRes.status === 403) throw new Error('QUOTA_EXCEEDED');
+        if (searchRes.status === 400 || searchRes.status === 401)
           throw new Error('API_KEY_INVALID');
-        } else if (response.status === 429) {
-          throw new Error('QUOTA_EXCEEDED');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${searchRes.status}`);
+      }
+      const searchJson = await searchRes.json();
+      const videoIds = (searchJson.items || [])
+        .map((i) => i.id?.videoId)
+        .filter(Boolean);
+      if (videoIds.length === 0) {
+        this.setCachedResult(cacheKey, []);
+        return [];
       }
 
-      const data = await response.json();
+      // 2) videos API로 상세 정보 + 통계
+      const videosRes = await fetch(
+        `${this.youtubeApiBase}/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(
+          ','
+        )}&key=${apiKey}`
+      );
+      if (!videosRes.ok) {
+        if (videosRes.status === 403) throw new Error('QUOTA_EXCEEDED');
+        if (videosRes.status === 400 || videosRes.status === 401)
+          throw new Error('API_KEY_INVALID');
+        throw new Error(`HTTP error! status: ${videosRes.status}`);
+      }
+      const videosJson = await videosRes.json();
+
+      const parseDuration = (iso) => {
+        // PT#H#M#S to seconds
+        const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        if (!m) return 0;
+        const h = parseInt(m[1] || '0', 10);
+        const mm = parseInt(m[2] || '0', 10);
+        const s = parseInt(m[3] || '0', 10);
+        return h * 3600 + mm * 60 + s;
+      };
+
+      const data = (videosJson.items || []).map((v) => ({
+        id: v.id,
+        title: v.snippet?.title || '',
+        description: v.snippet?.description || '',
+        channelTitle: v.snippet?.channelTitle || '',
+        thumbnail: v.snippet?.thumbnails?.medium?.url || '',
+        viewCount: Number(v.statistics?.viewCount || 0),
+        likeCount: Number(v.statistics?.likeCount || 0),
+        commentCount: Number(v.statistics?.commentCount || 0),
+        publishedAt: v.snippet?.publishedAt,
+        duration: parseDuration(v.contentDetails?.duration || 'PT0S'),
+        language:
+          v.snippet?.defaultLanguage || v.snippet?.defaultAudioLanguage || '',
+      }));
 
       // 결과 캐싱
       this.setCachedResult(cacheKey, data);
@@ -115,22 +185,33 @@ class SearchManager {
   async analyzeChannel(channelId) {
     try {
       console.log('채널 분석 시작:', channelId);
+      const apiKey = this.apiManager.getApiKey();
 
-      const response = await fetch(
-        `${this.baseUrl}/analyze/channel/${channelId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
+      // 채널 기본 정보
+      const chRes = await fetch(
+        `${this.youtubeApiBase}/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`
       );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!chRes.ok) {
+        if (chRes.status === 403) throw new Error('QUOTA_EXCEEDED');
+        if (chRes.status === 400 || chRes.status === 401)
+          throw new Error('API_KEY_INVALID');
+        throw new Error(`HTTP error! status: ${chRes.status}`);
       }
+      const chJson = await chRes.json();
+      const ch = (chJson.items || [])[0];
+      if (!ch) throw new Error('채널 정보를 찾을 수 없습니다.');
 
-      const data = await response.json();
+      const data = {
+        id: ch.id,
+        title: ch.snippet?.title,
+        description: ch.snippet?.description,
+        thumbnail: ch.snippet?.thumbnails?.high?.url,
+        subscriberCount: Number(ch.statistics?.subscriberCount || 0),
+        videoCount: Number(ch.statistics?.videoCount || 0),
+        viewCount: Number(ch.statistics?.viewCount || 0),
+        publishedAt: ch.snippet?.publishedAt,
+        country: ch.snippet?.country || '',
+      };
       console.log('채널 분석 완료:', data);
 
       // UI에 분석 결과 표시
@@ -293,19 +374,45 @@ class SearchManager {
   async getTrendingVideos(country = 'KR', category = '0') {
     try {
       console.log('트렌딩 영상 가져오기:', country, category);
-
-      const response = await fetch(`${this.baseUrl}/trending`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const apiKey = this.apiManager.getApiKey();
+      const params = new URLSearchParams({
+        part: 'snippet,statistics,contentDetails',
+        chart: 'mostPopular',
+        regionCode: country,
+        videoCategoryId: category,
+        maxResults: '25',
+        key: apiKey,
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const res = await fetch(`${this.youtubeApiBase}/videos?${params}`);
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('QUOTA_EXCEEDED');
+        if (res.status === 400 || res.status === 401)
+          throw new Error('API_KEY_INVALID');
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-
-      const data = await response.json();
+      const json = await res.json();
+      const parseDuration = (iso) => {
+        const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        if (!m) return 0;
+        const h = parseInt(m[1] || '0', 10);
+        const mm = parseInt(m[2] || '0', 10);
+        const s = parseInt(m[3] || '0', 10);
+        return h * 3600 + mm * 60 + s;
+      };
+      const data = (json.items || []).map((v) => ({
+        id: v.id,
+        title: v.snippet?.title || '',
+        description: v.snippet?.description || '',
+        channelTitle: v.snippet?.channelTitle || '',
+        thumbnail: v.snippet?.thumbnails?.medium?.url || '',
+        viewCount: Number(v.statistics?.viewCount || 0),
+        likeCount: Number(v.statistics?.likeCount || 0),
+        commentCount: Number(v.statistics?.commentCount || 0),
+        publishedAt: v.snippet?.publishedAt,
+        duration: parseDuration(v.contentDetails?.duration || 'PT0S'),
+        language:
+          v.snippet?.defaultLanguage || v.snippet?.defaultAudioLanguage || '',
+      }));
       console.log('트렌딩 영상 가져오기 완료:', data.length, '개 결과');
       return data;
     } catch (error) {
@@ -320,20 +427,11 @@ class SearchManager {
   async getPopularVideos(filters = {}) {
     try {
       console.log('인기 영상 가져오기:', filters);
-
-      const response = await fetch(`${this.baseUrl}/popular`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(filters),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // 프론트엔드 전용: mostPopular API 사용, 필터는 클라이언트에서 적용
+      const data = await this.getTrendingVideos(
+        filters.country || filters.targetCountry || 'KR',
+        '0'
+      );
       console.log('인기 영상 가져오기 완료:', data.length, '개 결과');
       return data;
     } catch (error) {
@@ -348,19 +446,44 @@ class SearchManager {
   async getVideoDetails(videoId) {
     try {
       console.log('영상 상세 정보 가져오기:', videoId);
-
-      const response = await fetch(`${this.baseUrl}/video/${videoId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const apiKey = this.apiManager.getApiKey();
+      const res = await fetch(
+        `${this.youtubeApiBase}/videos?part=snippet,statistics,contentDetails&id=${videoId}&key=${apiKey}`
+      );
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('QUOTA_EXCEEDED');
+        if (res.status === 400 || res.status === 401)
+          throw new Error('API_KEY_INVALID');
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-
-      const data = await response.json();
+      const json = await res.json();
+      const v = (json.items || [])[0];
+      const parseDuration = (iso) => {
+        const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        if (!m) return 0;
+        const h = parseInt(m[1] || '0', 10);
+        const mm = parseInt(m[2] || '0', 10);
+        const s = parseInt(m[3] || '0', 10);
+        return h * 3600 + mm * 60 + s;
+      };
+      const data = v
+        ? {
+            id: v.id,
+            title: v.snippet?.title || '',
+            description: v.snippet?.description || '',
+            channelTitle: v.snippet?.channelTitle || '',
+            thumbnail: v.snippet?.thumbnails?.medium?.url || '',
+            viewCount: Number(v.statistics?.viewCount || 0),
+            likeCount: Number(v.statistics?.likeCount || 0),
+            commentCount: Number(v.statistics?.commentCount || 0),
+            publishedAt: v.snippet?.publishedAt,
+            duration: parseDuration(v.contentDetails?.duration || 'PT0S'),
+            language:
+              v.snippet?.defaultLanguage ||
+              v.snippet?.defaultAudioLanguage ||
+              '',
+          }
+        : null;
       console.log('영상 상세 정보 가져오기 완료');
       return data;
     } catch (error) {
@@ -377,21 +500,18 @@ class SearchManager {
       if (!query || query.length < 2) {
         return [];
       }
-
-      const response = await fetch(`${this.baseUrl}/suggestions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
+      // 클라이언트에서 간단 자동완성: 최근 검색 기록 기반
+      const history = (
+        window.youtubeHotFinder?.stateManager?.getSearchHistory?.() || []
+      )
+        .filter(
+          (h) =>
+            h.type === 'keyword' &&
+            h.query.toLowerCase().includes(query.toLowerCase())
+        )
+        .slice(0, 10)
+        .map((h) => h.query);
+      return Array.from(new Set(history));
     } catch (error) {
       console.error('검색 제안 가져오기 오류:', error);
       return [];
@@ -562,19 +682,10 @@ class SearchManager {
    */
   async getSearchStats() {
     try {
-      const response = await fetch(`${this.baseUrl}/stats`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
+      // 프론트엔드 임시 통계: 최근 결과 수
+      const last =
+        window.youtubeHotFinder?.stateManager?.getState?.().lastSearch;
+      return last ? { last } : { last: null };
     } catch (error) {
       console.error('검색 통계 가져오기 오류:', error);
       throw error;

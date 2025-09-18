@@ -314,18 +314,8 @@ class UIController {
   updateApiStatus(status) {
     const statusElement = document.getElementById('apiStatus');
     if (!statusElement) return;
-
-    const statusConfig = {
-      ready: { class: 'alert-info', text: '대기 중이 아님' },
-      waiting: { class: 'alert-warning', text: 'API 키 대기 중' },
-      error: { class: 'alert-danger', text: 'API 오류 발생' },
-      quota_exceeded: { class: 'alert-warning', text: '쿼터 초과' },
-    };
-
-    const config = statusConfig[status] || statusConfig['ready'];
-
-    statusElement.className = `alert ${config.class}`;
-    statusElement.textContent = config.text;
+    statusElement.className = 'alert alert-info';
+    statusElement.textContent = '프론트엔드 직접 호출 모드';
   }
 
   /**
