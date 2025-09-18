@@ -105,6 +105,13 @@ class SearchManager {
       await this.apiManager.ensureKeyLoaded();
       const apiKey = this.apiManager.getApiKey();
 
+      // 국가-언어 기본 매핑(언어 미설정 또는 기본값인 경우 보정)
+      const country = filters.country || filters.targetCountry || 'KR';
+      const languageMap = { KR: 'ko', US: 'en', GB: 'en', JP: 'ja' };
+      if (!filters.language || filters.language === 'ko' && country !== 'KR') {
+        filters.language = languageMap[country] || filters.language || 'en';
+      }
+
       // 1) search API로 영상 ID 수집
       const params = new URLSearchParams({
         part: 'snippet',
@@ -113,7 +120,7 @@ class SearchManager {
         maxResults: '25',
         key: apiKey,
         relevanceLanguage: filters.language || 'ko',
-        regionCode: filters.country || filters.targetCountry || 'KR',
+        regionCode: country,
       });
       const searchRes = await fetch(`${this.youtubeApiBase}/search?${params}`);
       if (!searchRes.ok) {
@@ -170,11 +177,16 @@ class SearchManager {
           v.snippet?.defaultLanguage || v.snippet?.defaultAudioLanguage || '',
       }));
 
-      // 결과 캐싱
-      this.setCachedResult(cacheKey, data);
+      // 가공: 핫스코어, 필터, 랭킹 적용
+      data.forEach((v) => (v.hotScore = this.calculateHotScore(v)));
+      const filtered = this.filterVideos(data, filters || {});
+      const ranked = this.calculateRanking(filtered, 'views');
 
-      console.log('키워드 검색 완료:', data.length, '개 결과');
-      return data;
+      // 결과 캐싱
+      this.setCachedResult(cacheKey, ranked);
+
+      console.log('키워드 검색 완료:', ranked.length, '개 결과');
+      return ranked;
     } catch (error) {
       console.error('키워드 검색 오류:', error);
       throw error;
@@ -436,8 +448,12 @@ class SearchManager {
         filters.country || filters.targetCountry || 'KR',
         '0'
       );
-      console.log('인기 영상 가져오기 완료:', data.length, '개 결과');
-      return data;
+      // 가공: 핫스코어, 필터, 랭킹 적용
+      data.forEach((v) => (v.hotScore = this.calculateHotScore(v)));
+      const filtered = this.filterVideos(data, filters || {});
+      const ranked = this.calculateRanking(filtered, 'views');
+      console.log('인기 영상 가져오기 완료:', ranked.length, '개 결과');
+      return ranked;
     } catch (error) {
       console.error('인기 영상 가져오기 오류:', error);
       throw error;
