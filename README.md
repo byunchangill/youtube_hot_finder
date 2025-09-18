@@ -3,6 +3,7 @@
 유튜브 인기/트렌딩 영상을 키워드/채널 기준으로 손쉽게 검색·랭킹하는 순수 프런트엔드 웹 앱입니다. GitHub Pages로 배포되며, YouTube Data API v3를 직접 호출합니다.
 
 ## 📦 현재 상태 (중요)
+
 - 보안: 공개 레포에는 API 키가 커밋되지 않습니다. GitHub Actions가 Secrets에서 배포 시점에 `docs/application.properties`를 생성합니다.
 
 ## ✨ 주요 기능
@@ -29,36 +30,43 @@ youtube_hot_finder/
 
 ## 🚀 로컬 실행
 
-1) 단순히 파일로 열기
+1. 단순히 파일로 열기
+
 - `src/main/resources/static/index.html`을 브라우저로 엽니다.
 - 팁: CORS 문제를 피하려면 간단 서버 사용 권장
 
-2) 간단 HTTP 서버 사용 예
+2. 간단 HTTP 서버 사용 예
+
 ```bash
 cd src/main/resources/static
 npx http-server -p 8080
 # http://localhost:8080
 ```
 
-3) API 키 주입(로컬)
+3. API 키 주입(로컬)
+
 - `src/main/resources/application.properties`에 다음 키를 설정합니다.
   - `youtube.api.default-key=YOUR_YOUTUBE_API_KEY`
 - 또는 브라우저 콘솔에서 임시 주입:
+
 ```js
-window.__YOUTUBE_API_KEY__ = 'YOUR_YOUTUBE_API_KEY'
+window.__YOUTUBE_API_KEY__ = 'YOUR_YOUTUBE_API_KEY';
 ```
 
 ## 🌐 GitHub Pages 배포 (Actions + Secrets)
 
-1) 레포 Secrets 등록
+1. 레포 Secrets 등록
+
 - 레포 Settings → Secrets and variables → Actions → New repository secret
 - Name: `YOUTUBE_API_KEY`
 - Value: 본인 YouTube Data API v3 키
 
-2) Pages 설정
+2. Pages 설정
+
 - Settings → Pages → Build and deployment: “GitHub Actions” 선택
 
-3) 워크플로우
+3. 워크플로우
+
 - `.github/workflows/pages.yml`가 커밋되어 있습니다.
 - 푸시 시 Actions가 실행되어 `docs/`를 만들고 `docs/application.properties`에 키를 주입하여 배포합니다.
 

@@ -293,26 +293,52 @@ class YouTubeHotFinder {
    * 현재 설정값 가져오기
    */
   getCurrentSettings() {
+    const state = this.stateManager?.getState?.() || {};
+
+    const getEl = (id) => document.getElementById(id);
+    const getVal = (id, def = '') => {
+      const el = getEl(id);
+      if (!el) return def;
+      if (el.type === 'checkbox') return el.checked;
+      return el.value;
+    };
+    const toInt = (v, def = 0) => {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : def;
+    };
+    const toFloat = (v, def = 0) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : def;
+    };
+
     return {
-      executionMode: document.getElementById('executionMode').value,
-      daysToAnalyze: parseInt(document.getElementById('daysToAnalyze').value),
-      maxSearchesPerChannel: parseInt(
-        document.getElementById('maxSearchesPerChannel').value
+      executionMode: getVal('executionMode', state.searchSettings?.executionMode || 'trending'),
+      daysToAnalyze: toInt(getVal('daysToAnalyze'), state.searchSettings?.daysToAnalyze || 10),
+      maxSearchesPerChannel: toInt(
+        getVal('maxSearchesPerChannel'),
+        state.searchSettings?.maxSearchesPerChannel || 10
       ),
-      minViewsPerHour: parseFloat(
-        document.getElementById('minViewsPerHour').value
+      minViewsPerHour: toFloat(
+        getVal('minViewsPerHour'),
+        state.filters?.minViewsPerHour || 600
       ),
-      apiWaitTime: parseInt(document.getElementById('apiWaitTime').value),
-      videoType: document.getElementById('videoType').value,
-      targetCountry: document.getElementById('targetCountry').value,
-      maxSearchesPerKeyword: parseInt(
-        document.getElementById('maxSearchesPerKeyword').value
+      // apiWaitTime 필드는 UI에서 제거됨: 상태의 기본값이나 30 사용
+      apiWaitTime: state.searchSettings?.apiWaitTime || 30,
+      videoType: getVal('videoType', state.filters?.videoType || 'both'),
+      targetCountry: getVal('targetCountry', state.filters?.country || 'KR'),
+      maxSearchesPerKeyword: toInt(
+        getVal('maxSearchesPerKeyword'),
+        state.searchSettings?.maxSearchesPerKeyword || 50
       ),
-      shortsDuration: parseInt(document.getElementById('shortsDuration').value),
-      language: document.getElementById('language').value,
-      minViews: parseInt(document.getElementById('minViews').value),
-      showPopularByChannel: document.getElementById('showPopularByChannel')
-        .checked,
+      shortsDuration: toInt(
+        getVal('shortsDuration'),
+        state.filters?.shortsDuration || 180
+      ),
+      language: getVal('language', state.filters?.language || 'ko'),
+      minViews: toInt(getVal('minViews'), state.filters?.minViews || 20000),
+      showPopularByChannel: Boolean(
+        getVal('showPopularByChannel', state.searchSettings?.showPopularByChannel || false)
+      ),
     };
   }
 
