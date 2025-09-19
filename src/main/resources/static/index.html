@@ -42,7 +42,7 @@
               type="button"
               role="tab"
             >
-              채널핸들명
+              채널명검색
             </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -54,7 +54,7 @@
               type="button"
               role="tab"
             >
-              키워드입력
+              키워드검색
             </button>
           </li>
           <!--
@@ -252,7 +252,7 @@
                 <div class="card-body">
                   <div class="mb-3">
                     <label for="shortsDuration" class="form-label"
-                      >쇼츠 기준(조)</label
+                      >쇼츠 기준(초)</label
                     >
                     <input
                       type="number"
@@ -345,6 +345,7 @@
                             id="resultSortBy"
                             style="width: auto"
                           >
+                            <option value="">정렬 기준 선택</option>
                             <!-- <option value="relevance">관련성</option> -->
                             <option value="viewCount">조회수</option>
                             <option value="subscriberCount">구독자수</option>
@@ -359,6 +360,7 @@
                             id="resultSortOrder"
                             style="width: auto"
                           >
+                            <option value="">정렬 순서 선택</option>
                             <option value="desc">높은순</option>
                             <option value="asc">낮은순</option>
                           </select>

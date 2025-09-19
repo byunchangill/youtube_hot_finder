@@ -309,6 +309,15 @@ class YouTubeHotFinder {
   handleResultSortChange() {
     console.log('검색 결과 영역 정렬 옵션 변경됨');
 
+    // 정렬 기준과 순서가 모두 선택되었는지 확인
+    const sortBy = document.getElementById('resultSortBy')?.value;
+    const sortOrder = document.getElementById('resultSortOrder')?.value;
+
+    if (!sortBy || !sortOrder) {
+      console.log('정렬 기준 또는 순서가 선택되지 않음');
+      return; // 둘 다 선택되지 않으면 정렬하지 않음
+    }
+
     // 검색 결과 영역 정렬 정보 업데이트
     this.updateResultSortInfo();
 
@@ -330,8 +339,15 @@ class YouTubeHotFinder {
    * 검색 결과 영역 정렬 정보 업데이트
    */
   updateResultSortInfo() {
-    // 파란색 배지가 제거되어 더 이상 업데이트할 필요 없음
-    console.log('정렬 정보 업데이트 완료');
+    const sortBy = document.getElementById('resultSortBy')?.value;
+    const sortOrder = document.getElementById('resultSortOrder')?.value;
+
+    if (!sortBy || !sortOrder) {
+      console.log('정렬 옵션이 완전히 선택되지 않음');
+      return;
+    }
+
+    console.log('정렬 정보 업데이트 완료:', sortBy, sortOrder);
   }
 
   /**
@@ -355,10 +371,14 @@ class YouTubeHotFinder {
       );
 
       // 검색 결과 영역의 정렬 옵션 사용
-      const sortBy =
-        document.getElementById('resultSortBy')?.value || 'relevance';
-      const sortOrder =
-        document.getElementById('resultSortOrder')?.value || 'desc';
+      const sortBy = document.getElementById('resultSortBy')?.value;
+      const sortOrder = document.getElementById('resultSortOrder')?.value;
+
+      // 정렬 기준과 순서가 모두 선택되었는지 확인
+      if (!sortBy || !sortOrder) {
+        console.log('정렬 옵션이 완전히 선택되지 않음');
+        return;
+      }
 
       // 정렬 적용하여 다시 표시
       const sortedResults = this.sortManager.sortData(

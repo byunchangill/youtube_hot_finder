@@ -237,18 +237,24 @@ class UIController {
         return;
       }
 
-      // 정렬 적용
+      // 정렬 적용 (검색 결과 영역의 정렬 옵션 사용)
       let sortedResults = results;
       if (sortManager) {
-        const sortBy = document.getElementById('sortBy')?.value || 'relevance';
-        const sortOrder = document.getElementById('sortOrder')?.value || 'desc';
-        sortedResults = sortManager.sortData(results, sortBy, sortOrder);
-        console.log('정렬 적용됨:', {
-          sortBy,
-          sortOrder,
-          originalCount: results.length,
-          sortedCount: sortedResults.length,
-        });
+        const sortBy = document.getElementById('resultSortBy')?.value;
+        const sortOrder = document.getElementById('resultSortOrder')?.value;
+
+        // 정렬 기준과 순서가 모두 선택된 경우에만 정렬 적용
+        if (sortBy && sortOrder) {
+          sortedResults = sortManager.sortData(results, sortBy, sortOrder);
+          console.log('정렬 적용됨:', {
+            sortBy,
+            sortOrder,
+            originalCount: results.length,
+            sortedCount: sortedResults.length,
+          });
+        } else {
+          console.log('정렬 옵션이 선택되지 않아 원본 순서 유지');
+        }
       }
 
       // 기존 내용 제거
@@ -260,7 +266,8 @@ class UIController {
           (video, index) => `
         <div class="card mb-3 video-row" data-video-id="${video.id}" style="cursor: pointer;">
           <div class="card-body">
-            <div class="row align-items-center">
+            <!-- 데스크톱 레이아웃 -->
+            <div class="row align-items-center d-none d-lg-flex">
               <div class="col-1 text-center">
                 <div class="ranking-number ${index < 3 ? 'top-3' : ''}">
                   ${index + 1}
@@ -278,7 +285,7 @@ class UIController {
                   </div>
                 </div>
               </div>
-              <div class="col-5">
+              <div class="col-4">
                 <div class="video-info">
                   <h6 class="mb-1 text-truncate video-title" title="${video.title}">
                     ${video.title}
@@ -293,17 +300,80 @@ class UIController {
                   ${video.channelTitle}
                 </small>
               </div>
-              <div class="col-1 text-end">
-                <small class="view-count">${this.formatNumber(video.viewCount)}</small>
+              <div class="col-3">
+                <div class="row g-1">
+                  <div class="col-3 text-center">
+                    <small class="text-muted d-block">조회수</small>
+                    <small class="view-count fw-bold">${this.formatNumber(video.viewCount)}</small>
+                  </div>
+                  <div class="col-3 text-center">
+                    <small class="text-muted d-block">좋아요</small>
+                    <small class="like-count fw-bold">${this.formatNumber(video.likeCount)}</small>
+                  </div>
+                  <div class="col-3 text-center">
+                    <small class="text-muted d-block">시간</small>
+                    <small class="duration fw-bold">${this.formatDuration(video.duration)}</small>
+                  </div>
+                  <div class="col-3 text-center">
+                    <small class="text-muted d-block">구독자</small>
+                    <small class="subscriber-count fw-bold">${this.formatNumber(video.subscriberCount)}</small>
+                  </div>
+                </div>
               </div>
-              <div class="col-1 text-end">
-                <small class="like-count">${this.formatNumber(video.likeCount)}</small>
+            </div>
+            
+            <!-- 모바일/태블릿 레이아웃 -->
+            <div class="d-lg-none">
+              <div class="row align-items-start">
+                <div class="col-2 text-center">
+                  <div class="ranking-number ${index < 3 ? 'top-3' : ''}">
+                    ${index + 1}
+                  </div>
+                </div>
+                <div class="col-4 text-center">
+                  <div class="thumbnail-container position-relative d-inline-block">
+                    <img src="${video.thumbnail || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA4MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik0zMiAyNEg0OFYzNkgzMlYyNFoiIGZpbGw9IiNDQ0MiLz4KPHBhdGggZD0iTTI4IDQwSDUyVjQ0SDI4VjQwWiIgZmlsbD0iI0NDQyIvPgo8L3N2Zz4K'}" 
+                         alt="${video.title}" 
+                         class="img-fluid rounded" 
+                         style="width: 60px; height: 45px; object-fit: cover;"
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA4MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik0zMiAyNEg0OFYzNkgzMlYyNFoiIGZpbGw9IiNDQ0MiLz4KPHBhdGggZD0iTTI4IDQwSDUyVjQ0SDI4VjQwWiIgZmlsbD0iI0NDQyIvPgo8L3N2Zz4K'">
+                    <div class="play-button position-absolute top-50 start-50 translate-middle">
+                      <i class="fas fa-play-circle text-white" style="font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.7);"></i>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="video-info">
+                    <h6 class="mb-1 text-truncate video-title" title="${video.title}" style="font-size: 0.9rem;">
+                      ${video.title}
+                    </h6>
+                    <small class="text-muted text-truncate channel-name d-block" title="${video.channelTitle}">
+                      ${video.channelTitle}
+                    </small>
+                  </div>
+                </div>
               </div>
-              <div class="col-1 text-end">
-                <small class="duration">${this.formatDuration(video.duration)}</small>
-              </div>
-              <div class="col-1 text-end">
-                <small class="subscriber-count">${this.formatNumber(video.subscriberCount)}</small>
+              <div class="row mt-2">
+                <div class="col-12">
+                  <div class="row g-2">
+                    <div class="col-3 text-center">
+                      <small class="text-muted d-block" style="font-size: 0.7rem;">조회수</small>
+                      <small class="view-count fw-bold" style="font-size: 0.8rem;">${this.formatNumber(video.viewCount)}</small>
+                    </div>
+                    <div class="col-3 text-center">
+                      <small class="text-muted d-block" style="font-size: 0.7rem;">좋아요</small>
+                      <small class="like-count fw-bold" style="font-size: 0.8rem;">${this.formatNumber(video.likeCount)}</small>
+                    </div>
+                    <div class="col-3 text-center">
+                      <small class="text-muted d-block" style="font-size: 0.7rem;">시간</small>
+                      <small class="duration fw-bold" style="font-size: 0.8rem;">${this.formatDuration(video.duration)}</small>
+                    </div>
+                    <div class="col-3 text-center">
+                      <small class="text-muted d-block" style="font-size: 0.7rem;">구독자</small>
+                      <small class="subscriber-count fw-bold" style="font-size: 0.8rem;">${this.formatNumber(video.subscriberCount)}</small>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
