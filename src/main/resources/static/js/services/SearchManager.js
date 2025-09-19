@@ -170,15 +170,20 @@ class SearchManager {
         title: v.snippet?.title || '',
         description: v.snippet?.description || '',
         channelTitle: v.snippet?.channelTitle || '',
+        channelId: v.snippet?.channelId || '',
         thumbnail: v.snippet?.thumbnails?.medium?.url || '',
         viewCount: Number(v.statistics?.viewCount || 0),
         likeCount: Number(v.statistics?.likeCount || 0),
         commentCount: Number(v.statistics?.commentCount || 0),
         publishedAt: v.snippet?.publishedAt,
-        duration: parseDuration(v.contentDetails?.duration || 'PT0S'),
+        duration: v.contentDetails?.duration || 'PT0S', // ISO 8601 형식으로 저장
         language:
           v.snippet?.defaultLanguage || v.snippet?.defaultAudioLanguage || '',
+        subscriberCount: 0, // 초기값, 나중에 채널 정보로 업데이트
       }));
+
+      // 구독자수 정보 가져오기
+      await this.enrichWithSubscriberCount(data);
 
       // 가공: 핫스코어, 필터, 랭킹 적용
       data.forEach((v) => (v.hotScore = this.calculateHotScore(v)));
@@ -464,6 +469,65 @@ class SearchManager {
   }
 
   /**
+   * 구독자수 정보로 데이터 보강
+   */
+  async enrichWithSubscriberCount(videos) {
+    try {
+      // 고유한 채널 ID들 수집
+      const uniqueChannelIds = [
+        ...new Set(videos.map((v) => v.channelId).filter(Boolean)),
+      ];
+
+      if (uniqueChannelIds.length === 0) {
+        console.log('구독자수 정보를 가져올 채널이 없습니다.');
+        return;
+      }
+
+      console.log(
+        '구독자수 정보 가져오기:',
+        uniqueChannelIds.length,
+        '개 채널'
+      );
+
+      // 채널 정보 가져오기
+      await this.apiManager.ensureKeyLoaded();
+      const apiKey = this.apiManager.getApiKey();
+
+      const channelsRes = await fetch(
+        `${this.youtubeApiBase}/channels?part=statistics&id=${uniqueChannelIds.join(',')}&key=${apiKey}`
+      );
+
+      if (!channelsRes.ok) {
+        console.warn('채널 정보 가져오기 실패:', channelsRes.status);
+        return;
+      }
+
+      const channelsJson = await channelsRes.json();
+      const channelStats = new Map();
+
+      // 채널별 구독자수 매핑
+      (channelsJson.items || []).forEach((channel) => {
+        channelStats.set(
+          channel.id,
+          Number(channel.statistics?.subscriberCount || 0)
+        );
+      });
+
+      // 비디오 데이터에 구독자수 정보 추가
+      videos.forEach((video) => {
+        if (video.channelId && channelStats.has(video.channelId)) {
+          video.subscriberCount = channelStats.get(video.channelId);
+        }
+      });
+
+      console.log('구독자수 정보 보강 완료');
+    } catch (error) {
+      console.error('구독자수 정보 가져오기 오류:', error);
+      // 오류가 발생해도 검색은 계속 진행
+    }
+  }
+
+  /**
    * 영상 상세 정보 가져오기
    */
   async getVideoDetails(videoId) {
@@ -496,18 +560,26 @@ class SearchManager {
             title: v.snippet?.title || '',
             description: v.snippet?.description || '',
             channelTitle: v.snippet?.channelTitle || '',
+            channelId: v.snippet?.channelId || '',
             thumbnail: v.snippet?.thumbnails?.medium?.url || '',
             viewCount: Number(v.statistics?.viewCount || 0),
             likeCount: Number(v.statistics?.likeCount || 0),
             commentCount: Number(v.statistics?.commentCount || 0),
             publishedAt: v.snippet?.publishedAt,
-            duration: parseDuration(v.contentDetails?.duration || 'PT0S'),
+            duration: v.contentDetails?.duration || 'PT0S', // ISO 8601 형식으로 저장
             language:
               v.snippet?.defaultLanguage ||
               v.snippet?.defaultAudioLanguage ||
               '',
+            subscriberCount: 0, // 초기값
           }
         : null;
+
+      // 구독자수 정보 가져오기
+      if (data) {
+        await this.enrichWithSubscriberCount([data]);
+      }
+
       console.log('영상 상세 정보 가져오기 완료');
       return data;
     } catch (error) {
@@ -614,18 +686,24 @@ class SearchManager {
   filterVideos(videos, filters) {
     try {
       console.log('영상 필터링 시작:', filters);
+      console.log('필터링 전 영상 수:', videos.length);
 
       let filteredVideos = [...videos];
 
       // 최소 조회수 필터
       if (filters.minViews) {
+        const beforeCount = filteredVideos.length;
         filteredVideos = filteredVideos.filter(
           (video) => video.viewCount >= filters.minViews
+        );
+        console.log(
+          `조회수 필터 (>=${filters.minViews}): ${beforeCount} -> ${filteredVideos.length}`
         );
       }
 
       // 최소 시간당 조회수 필터
       if (filters.minViewsPerHour) {
+        const beforeCount = filteredVideos.length;
         filteredVideos = filteredVideos.filter((video) => {
           const hoursSincePublished = this.getHoursSincePublished(
             video.publishedAt
@@ -634,24 +712,37 @@ class SearchManager {
             video.viewCount / Math.max(hoursSincePublished, 1);
           return viewsPerHour >= filters.minViewsPerHour;
         });
+        console.log(
+          `시간당 조회수 필터 (>=${filters.minViewsPerHour}): ${beforeCount} -> ${filteredVideos.length}`
+        );
       }
 
       // 영상 타입 필터
       if (filters.videoType && filters.videoType !== 'both') {
+        const beforeCount = filteredVideos.length;
         filteredVideos = filteredVideos.filter((video) => {
+          const durationInSeconds = this.parseDurationToSeconds(video.duration);
           if (filters.videoType === 'shorts') {
-            return video.duration <= (filters.shortsDuration || 180);
+            return durationInSeconds <= (filters.shortsDuration || 180);
           } else if (filters.videoType === 'normal') {
-            return video.duration > (filters.shortsDuration || 180);
+            return durationInSeconds > (filters.shortsDuration || 180);
           }
           return true;
         });
+        console.log(
+          `영상 타입 필터 (${filters.videoType}): ${beforeCount} -> ${filteredVideos.length}`
+        );
       }
 
-      // 언어 필터
-      if (filters.language) {
-        filteredVideos = filteredVideos.filter(
-          (video) => video.language === filters.language
+      // 언어 필터 (선택적 - 너무 엄격하면 결과가 없을 수 있음)
+      if (filters.language && filters.language !== 'all') {
+        const beforeCount = filteredVideos.length;
+        filteredVideos = filteredVideos.filter((video) => {
+          // 언어가 없거나 일치하는 경우 통과
+          return !video.language || video.language === filters.language;
+        });
+        console.log(
+          `언어 필터 (${filters.language}): ${beforeCount} -> ${filteredVideos.length}`
         );
       }
 
@@ -670,6 +761,26 @@ class SearchManager {
     const now = new Date();
     const published = new Date(publishedAt);
     return (now - published) / (1000 * 60 * 60);
+  }
+
+  /**
+   * ISO 8601 duration을 초 단위로 변환
+   */
+  parseDurationToSeconds(duration) {
+    if (!duration || typeof duration !== 'string') {
+      return 0;
+    }
+
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) {
+      return 0;
+    }
+
+    const hours = parseInt(match[1]) || 0;
+    const minutes = parseInt(match[2]) || 0;
+    const seconds = parseInt(match[3]) || 0;
+
+    return hours * 3600 + minutes * 60 + seconds;
   }
 
   /**

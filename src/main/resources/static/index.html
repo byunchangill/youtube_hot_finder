@@ -329,7 +329,43 @@
             <div class="col-12">
               <div class="card">
                 <div class="card-header">
-                  <h5 class="card-title mb-0">검색 결과</h5>
+                  <div class="row align-items-center">
+                    <div class="col">
+                      <h5 class="card-title mb-0">검색 결과</h5>
+                    </div>
+                    <div class="col-auto">
+                      <div class="d-flex align-items-center gap-3">
+                        <!-- 정렬 기준 선택 -->
+                        <div class="d-flex align-items-center">
+                          <label for="resultSortBy" class="form-label me-2 mb-0"
+                            >정렬:</label
+                          >
+                          <select
+                            class="form-select form-select-sm"
+                            id="resultSortBy"
+                            style="width: auto"
+                          >
+                            <!-- <option value="relevance">관련성</option> -->
+                            <option value="viewCount">조회수</option>
+                            <option value="subscriberCount">구독자수</option>
+                            <option value="duration">영상시간</option>
+                          </select>
+                        </div>
+
+                        <!-- 정렬 순서 선택 -->
+                        <div class="d-flex align-items-center">
+                          <select
+                            class="form-select form-select-sm"
+                            id="resultSortOrder"
+                            style="width: auto"
+                          >
+                            <option value="desc">높은순</option>
+                            <option value="asc">낮은순</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div class="card-body">
                   <div id="searchResults">
@@ -431,6 +467,7 @@
 
     <!-- Application Scripts (순서 중요) -->
     <script src="js/utils/StateManager.js?v=2"></script>
+    <script src="js/utils/SortManager.js?v=2"></script>
     <script src="js/services/APIManager.js?v=2"></script>
     <script src="js/services/SearchManager.js?v=2"></script>
     <script src="js/components/UIController.js?v=2"></script>

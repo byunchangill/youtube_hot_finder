@@ -13,6 +13,8 @@ class YouTubeHotFinder {
     this.apiManager = new APIManager();
     this.filterManager = new FilterManager();
     this.dataVisualizer = new DataVisualizer();
+    this.sortManager = new SortManager();
+    this.currentSearchResults = []; // 현재 검색 결과 저장
 
     this.init();
   }
@@ -30,11 +32,16 @@ class YouTubeHotFinder {
       // UI 컨트롤러 초기화
       this.uiController.init();
 
+      // 정렬 매니저 초기화
+      this.sortManager.init();
+
       // 이벤트 리스너 등록
       this.setupEventListeners();
 
       // application.properties에서 기본 API 키 로드 시도 (실패해도 계속 진행)
-      try { await this.apiManager.preloadKeyFromProperties(); } catch (_) {}
+      try {
+        await this.apiManager.preloadKeyFromProperties();
+      } catch (_) {}
 
       // 초기 데이터 로드
       await this.loadInitialData();
@@ -97,6 +104,17 @@ class YouTubeHotFinder {
     this.filterManager.onFilterChange((filters) => {
       this.handleFilterChange(filters);
     });
+
+    // 검색 결과 영역 정렬 옵션 변경 이벤트
+    document.getElementById('resultSortBy')?.addEventListener('change', () => {
+      this.handleResultSortChange();
+    });
+
+    document
+      .getElementById('resultSortOrder')
+      ?.addEventListener('change', () => {
+        this.handleResultSortChange();
+      });
 
     // 폼 입력 이벤트
     this.setupFormEventListeners();
@@ -206,7 +224,11 @@ class YouTubeHotFinder {
       const results = await this.searchManager.searchKeyword(keyword, filters);
       console.log('검색 결과 받음:', results);
 
-      this.uiController.displaySearchResults(results);
+      // 검색 결과 저장
+      this.currentSearchResults = results;
+
+      this.uiController.displaySearchResults(results, this.sortManager);
+      this.updateResultSortInfo(); // 검색 결과 영역 정렬 정보 업데이트
       console.log('검색 결과 표시 완료');
 
       this.hideLoading();
@@ -282,6 +304,75 @@ class YouTubeHotFinder {
   }
 
   /**
+   * 검색 결과 영역 정렬 변경 처리
+   */
+  handleResultSortChange() {
+    console.log('검색 결과 영역 정렬 옵션 변경됨');
+
+    // 검색 결과 영역 정렬 정보 업데이트
+    this.updateResultSortInfo();
+
+    // 현재 표시된 검색 결과가 있는지 확인
+    const searchResults = document.getElementById('searchResults');
+    if (
+      !searchResults ||
+      searchResults.innerHTML.includes('검색을 시작해주세요') ||
+      searchResults.innerHTML.includes('검색 결과가 없습니다')
+    ) {
+      return; // 검색 결과가 없으면 정렬하지 않음
+    }
+
+    // 현재 검색 결과를 다시 정렬하여 표시
+    this.resortCurrentResults();
+  }
+
+  /**
+   * 검색 결과 영역 정렬 정보 업데이트
+   */
+  updateResultSortInfo() {
+    // 파란색 배지가 제거되어 더 이상 업데이트할 필요 없음
+    console.log('정렬 정보 업데이트 완료');
+  }
+
+  /**
+   * 현재 검색 결과를 다시 정렬
+   */
+  resortCurrentResults() {
+    try {
+      // 저장된 검색 결과가 있는지 확인
+      if (
+        !this.currentSearchResults ||
+        this.currentSearchResults.length === 0
+      ) {
+        console.log('정렬할 검색 결과가 없습니다.');
+        return;
+      }
+
+      console.log(
+        '현재 결과 재정렬:',
+        this.currentSearchResults.length,
+        '개 항목'
+      );
+
+      // 검색 결과 영역의 정렬 옵션 사용
+      const sortBy =
+        document.getElementById('resultSortBy')?.value || 'relevance';
+      const sortOrder =
+        document.getElementById('resultSortOrder')?.value || 'desc';
+
+      // 정렬 적용하여 다시 표시
+      const sortedResults = this.sortManager.sortData(
+        this.currentSearchResults,
+        sortBy,
+        sortOrder
+      );
+      this.uiController.displaySearchResults(sortedResults, null); // sortManager는 null로 전달하여 중복 정렬 방지
+    } catch (error) {
+      console.error('결과 재정렬 중 오류:', error);
+    }
+  }
+
+  /**
    * 폼 변경 처리
    */
   handleFormChange() {
@@ -312,8 +403,14 @@ class YouTubeHotFinder {
     };
 
     return {
-      executionMode: getVal('executionMode', state.searchSettings?.executionMode || 'trending'),
-      daysToAnalyze: toInt(getVal('daysToAnalyze'), state.searchSettings?.daysToAnalyze || 10),
+      executionMode: getVal(
+        'executionMode',
+        state.searchSettings?.executionMode || 'trending'
+      ),
+      daysToAnalyze: toInt(
+        getVal('daysToAnalyze'),
+        state.searchSettings?.daysToAnalyze || 10
+      ),
       maxSearchesPerChannel: toInt(
         getVal('maxSearchesPerChannel'),
         state.searchSettings?.maxSearchesPerChannel || 10
@@ -337,7 +434,10 @@ class YouTubeHotFinder {
       language: getVal('language', state.filters?.language || 'ko'),
       minViews: toInt(getVal('minViews'), state.filters?.minViews || 20000),
       showPopularByChannel: Boolean(
-        getVal('showPopularByChannel', state.searchSettings?.showPopularByChannel || false)
+        getVal(
+          'showPopularByChannel',
+          state.searchSettings?.showPopularByChannel || false
+        )
       ),
     };
   }

@@ -222,7 +222,7 @@ class UIController {
   /**
    * 검색 결과 표시
    */
-  displaySearchResults(results) {
+  displaySearchResults(results, sortManager = null) {
     try {
       console.log('검색 결과 표시 시작:', results);
       const container = document.getElementById('searchResults');
@@ -237,11 +237,25 @@ class UIController {
         return;
       }
 
+      // 정렬 적용
+      let sortedResults = results;
+      if (sortManager) {
+        const sortBy = document.getElementById('sortBy')?.value || 'relevance';
+        const sortOrder = document.getElementById('sortOrder')?.value || 'desc';
+        sortedResults = sortManager.sortData(results, sortBy, sortOrder);
+        console.log('정렬 적용됨:', {
+          sortBy,
+          sortOrder,
+          originalCount: results.length,
+          sortedCount: sortedResults.length,
+        });
+      }
+
       // 기존 내용 제거
       container.innerHTML = '';
 
       // 카드 형태로 표시 (테이블 대신)
-      const resultsHtml = results
+      const resultsHtml = sortedResults
         .map(
           (video, index) => `
         <div class="card mb-3 video-row" data-video-id="${video.id}" style="cursor: pointer;">
@@ -284,6 +298,12 @@ class UIController {
               </div>
               <div class="col-1 text-end">
                 <small class="like-count">${this.formatNumber(video.likeCount)}</small>
+              </div>
+              <div class="col-1 text-end">
+                <small class="duration">${this.formatDuration(video.duration)}</small>
+              </div>
+              <div class="col-1 text-end">
+                <small class="subscriber-count">${this.formatNumber(video.subscriberCount)}</small>
               </div>
             </div>
           </div>
@@ -418,6 +438,48 @@ class UIController {
     } else {
       return score.toFixed(1);
     }
+  }
+
+  /**
+   * 영상 시간 포맷팅
+   */
+  formatDuration(duration) {
+    if (!duration) return '0:00';
+
+    // ISO 8601 duration을 초 단위로 변환
+    const seconds = this.parseDurationToSeconds(duration);
+
+    if (seconds === 0) return '0:00';
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+  }
+
+  /**
+   * ISO 8601 duration을 초 단위로 변환
+   */
+  parseDurationToSeconds(duration) {
+    if (!duration || typeof duration !== 'string') {
+      return 0;
+    }
+
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) {
+      return 0;
+    }
+
+    const hours = parseInt(match[1]) || 0;
+    const minutes = parseInt(match[2]) || 0;
+    const seconds = parseInt(match[3]) || 0;
+
+    return hours * 3600 + minutes * 60 + seconds;
   }
 
   /**
