@@ -15,6 +15,7 @@ class YouTubeHotFinder {
     this.dataVisualizer = new DataVisualizer();
     this.sortManager = new SortManager();
     this.currentSearchResults = []; // 현재 검색 결과 저장
+    this.lastSearchTime = 0; // 마지막 검색 시간 추적
 
     this.init();
   }
@@ -221,8 +222,24 @@ class YouTubeHotFinder {
       const filters = this.filterManager.getCurrentFilters();
       console.log('필터 설정:', filters);
 
-      const results = await this.searchManager.searchKeyword(keyword, filters);
+      // 연속 검색 감지 (30초 이내 재검색 시 강제 새로고침)
+      const currentTime = Date.now();
+      const timeSinceLastSearch = currentTime - this.lastSearchTime;
+      const forceRefresh = timeSinceLastSearch < 30000; // 30초
+
+      if (forceRefresh) {
+        console.log('연속 검색 감지 - 강제 새로고침 사용');
+      }
+
+      const results = await this.searchManager.searchKeyword(
+        keyword,
+        filters,
+        forceRefresh
+      );
       console.log('검색 결과 받음:', results);
+
+      // 마지막 검색 시간 업데이트
+      this.lastSearchTime = currentTime;
 
       // 검색 결과 저장
       this.currentSearchResults = results;

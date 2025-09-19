@@ -6,7 +6,7 @@
 class SearchManager {
   constructor() {
     this.searchCache = new Map();
-    this.cacheExpiry = 5 * 60 * 1000; // 5분
+    this.cacheExpiry = 1 * 60 * 1000; // 1분 (재검색을 위해 단축)
     this.youtubeApiBase = 'https://www.googleapis.com/youtube/v3';
     this.apiManager = new APIManager();
   }
@@ -90,16 +90,27 @@ class SearchManager {
   /**
    * 키워드 검색
    */
-  async searchKeyword(keyword, filters = {}) {
+  async searchKeyword(keyword, filters = {}, forceRefresh = false) {
     try {
-      console.log('키워드 검색 시작:', keyword, filters);
+      console.log(
+        '키워드 검색 시작:',
+        keyword,
+        filters,
+        forceRefresh ? '(강제 새로고침)' : ''
+      );
 
-      // 캐시 확인
+      // 캐시 키 생성
       const cacheKey = `keyword_${keyword}_${JSON.stringify(filters)}`;
-      const cachedResult = this.getCachedResult(cacheKey);
-      if (cachedResult) {
-        console.log('캐시된 결과 반환');
-        return cachedResult;
+
+      // 캐시 확인 (강제 새로고침이 아닌 경우에만)
+      if (!forceRefresh) {
+        const cachedResult = this.getCachedResult(cacheKey);
+        if (cachedResult) {
+          console.log('캐시된 결과 반환');
+          return cachedResult;
+        }
+      } else {
+        console.log('강제 새로고침으로 캐시 무시');
       }
 
       await this.apiManager.ensureKeyLoaded();
@@ -116,11 +127,12 @@ class SearchManager {
       }
 
       // 1) search API로 영상 ID 수집
+      const maxResults = Math.min(filters.maxResults || 25, 50); // YouTube API 최대 50개 제한
       const params = new URLSearchParams({
         part: 'snippet',
         q: keyword,
         type: 'video',
-        maxResults: '25',
+        maxResults: maxResults.toString(),
         key: apiKey,
         relevanceLanguage: filters.language || 'ko',
         regionCode: country,
